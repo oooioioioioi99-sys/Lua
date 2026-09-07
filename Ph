@@ -1,0 +1,98 @@
+-- ============================================
+-- CARREGADOR PARA DELTA EXECUTOR v1.0
+-- ============================================
+
+-- 1. CONFIGURAÇÃO (SUBSTITUA PELO SEU SERVIDOR)
+local config = {
+    servidor = "https://seu-servidor.com/api",  -- ← MUDE AQUI
+    scriptId = "meu_script",                    -- ← MUDE AQUI
+    versao = "1.0"
+}
+
+-- 2. FUNÇÃO PARA HTTP (compatível com Delta)
+local function httpGet(url)
+    -- Delta usa "request" ou "http_request"
+    if request then
+        local resposta = request({Url = url, Method = "GET"})
+        return resposta.Body
+    elseif http_request then
+        local resposta = http_request({Url = url, Method = "GET"})
+        return resposta.Body
+    elseif game:GetService("HttpService") then
+        return game:HttpGet(url)
+    else
+        error("Nenhum método HTTP disponível")
+    end
+end
+
+-- 3. FUNÇÃO PARA MOSTRAR ERRO (com GUI)
+local function mostrarErro(mensagem)
+    local sucesso, gui = pcall(function()
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "ErroCarregador"
+        ScreenGui.Parent = game:GetService("CoreGui")
+        
+        local Frame = Instance.new("Frame")
+        Frame.Size = UDim2.new(0, 400, 0, 150)
+        Frame.Position = UDim2.new(0.5, -200, 0.5, -75)
+        Frame.BackgroundColor3 = Color3.fromRGB(30, 10, 10)
+        Frame.BorderSizePixel = 2
+        Frame.BorderColor3 = Color3.fromRGB(255, 50, 50)
+        Frame.Parent = ScreenGui
+        
+        local Label = Instance.new("TextLabel")
+        Label.Size = UDim2.new(1, -20, 1, -20)
+        Label.Position = UDim2.new(0, 10, 0, 10)
+        Label.Text = "❌ ERRO NO CARREGADOR\n\n" .. tostring(mensagem)
+        Label.TextColor3 = Color3.fromRGB(255, 200, 200)
+        Label.TextWrapped = true
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.Parent = Frame
+        
+        return ScreenGui
+    end)
+    
+    if not sucesso then
+        print("❌ ERRO:", mensagem)
+    end
+end
+
+-- 4. FUNÇÃO PRINCIPAL
+local function carregarScript()
+    print("🔄 Carregando script...")
+    
+    -- Monta URL com dados básicos
+    local url = config.servidor .. "/script/" .. config.scriptId
+    print("📡 URL:", url)
+    
+    -- Tenta baixar
+    local sucesso, codigo = pcall(httpGet, url)
+    
+    if not sucesso or not codigo then
+        mostrarErro("Falha ao baixar script:\n" .. tostring(codigo))
+        return
+    end
+    
+    print("✅ Script baixado (" .. #codigo .. " bytes)")
+    
+    -- Tenta executar
+    local fn, err = loadstring(codigo)
+    if not fn then
+        mostrarErro("Erro de sintaxe:\n" .. tostring(err))
+        return
+    end
+    
+    print("🚀 Executando script...")
+    local ok, erroExec = pcall(fn)
+    
+    if ok then
+        print("✅ Script executado com sucesso!")
+    else
+        mostrarErro("Erro na execução:\n" .. tostring(erroExec))
+    end
+end
+
+-- 5. EXECUTA
+carregarScript()
